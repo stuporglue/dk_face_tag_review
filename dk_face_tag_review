@@ -73,13 +73,49 @@ startup() {
 		underline=""
 		normal=""
 	fi
+
+	echo "${bold}NOTICE:${normal} It would be best to exit digiKam while running this program"
 }
 
-get_sql_password() {
-	echo
-	echo "In order to connect to digiKam's database, I will need your database password"
-	read -s -p "Enter MySQL Password for '$dk_dbuser@$dk_dbhost:$dk_dbport/$dk_dbname' > " dk_dbpass
-	echo
+connect_to_db() {
+
+	while ! [[ "$CONNECTED" = "1" ]] 
+		do
+			echo
+			echo "In order to connect to digiKam's database, I will need your database password"
+			read -s -p "Enter MySQL Password for '$dk_dbuser@$dk_dbhost:$dk_dbport/$dk_dbname' > " dk_dbpass
+			echo
+
+
+			if [ "$dk_dbport" = "3306" -a "$dk_dbhost" = "localhost" ]; then
+				cmd="mysql -s --user=${dk_dbuser:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --database=${dk_dbname:Q}"
+			else
+				cmd="mysql -s --user=${dk_dbuser:Q} --port=${dk_dbport:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --database=${dk_dbname:Q}"
+			fi
+
+			CONNECTED=$(echo "SELECT 1" | $cmd)
+			if ! [[ "$CONNECTED" = "1" ]]; then
+				echo "${bold}ERROR CONNECTING!${normal}"
+				echo
+				read -p "Do you want to try a different (p)assword or (q)uit? [p] " CONT
+
+				if [[ "$CONT" = "q" ]]; then
+					exit
+				fi
+			fi
+	done
+
+
+	echo 
+	echo "I can ask you before running any SQL query, or you can trust the program for this run."
+	read -p "Do you want me to always ask before running SQL queries? (y/n) [y] " ASK_SQL
+
+	if ! [[ "$ASK_SQL" = "n" ]]; then
+		ASK_SQL="y"
+	fi
+
+
+	get_info	
 }
 
 
@@ -87,7 +123,7 @@ get_sql_password() {
 sql_command() {
 
 	if [ "$dk_dbpass" = "" ]; then
-		get_sql_password
+		connect_to_db
 	fi
 
 	sql="$1"
@@ -97,19 +133,21 @@ sql_command() {
 	# To force a network connection, you should use 127.0.0.1 instead. 
 	# Sources: https://stackoverflow.com/questions/5376427/cant-connect-to-local-mysql-server-through-socket-var-mysql-mysql-sock-38 etc.
 	if [ "$dk_dbport" = "3306" -a "$dk_dbhost" = "localhost" ]; then
-		cmd="mysql -vv --user=${dk_dbuser:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --database=${dk_dbname:Q}"
+		cmd="mysql -s --user=${dk_dbuser:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --database=${dk_dbname:Q}"
 	else
-		cmd="mysql -vv --user=${dk_dbuser:Q} --port=${dk_dbport:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --database=${dk_dbname:Q}"
+		cmd="mysql -s --user=${dk_dbuser:Q} --port=${dk_dbport:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --database=${dk_dbname:Q}"
 	fi
 
-	echo "Using SQL command: $cmd"
-
-	echo "I am about to run the query: "
-	echo
-	echo "$sql" 
-	echo
-	read -p "Should I continue? (y/N) " CONT
-	echo
+	if ! [[ "$ASK_SQL" = "n" ]]; then
+		echo "I am about to run the query: "
+		echo
+		echo "$sql" 
+		echo
+		read -p "Should I continue? (y/n) [n] " CONT
+		echo
+	else
+		CONT="y"
+	fi
 
 	if [ "$CONT" = "y" ]; then
 		echo "$sql" | $cmd
@@ -118,28 +156,44 @@ sql_command() {
 	fi
 }
 
-check_info() {
+get_info() {
 	if [ "$dk_dbpass" = "" ]; then
-		get_sql_password
+		connect_to_db
 	fi
 
-	echo "I will run the following queries to see what the current status is:"
-	echo
-	echo "SHOW CREATE TABLE ImageTags"
-	echo "SELECT COUNT(*) FROM Tags WHERE pid=0 AND name='$TAG_NAME'"
-	echo "SELECT MIN(created_ts) FROM ImageTags"
-	echo "SELECT MIN(created_ts) FROM ImageTags"
-	echo "SELECT COUNT(DISTINCT imageid) AS ReviewableCount FROM ImageTags WHERE created_ts IS NOT NULL"
-	echo "SELECT COUNT(*) AS TaggedForReview FROM ImageTags WHERE tagid=(SELECT id FROM Tags WHERE pid=0 AND name='$TAG_NAME')"
+	if ! [ "$CAN_GET_INFO" = "Y" ]; then
 
-	echo
-	read -p "Should I continue? (y/N) " CONT
-	echo
+		if ! [[ "$ASK_SQL" = "n" ]]; then
+			echo 
+			echo "I will run the following queries to see what the current status is:"
+			echo
+			echo "SHOW CREATE TABLE ImageTags"
+			echo "SELECT COUNT(*) FROM Tags WHERE pid=0 AND name='$TAG_NAME'"
+			echo "SELECT MIN(created_ts) FROM ImageTags"
+			echo "SELECT MIN(created_ts) FROM ImageTags"
+			echo "SELECT COUNT(DISTINCT imageid) AS ReviewableCount FROM ImageTags WHERE created_ts IS NOT NULL"
+			echo "SELECT COUNT(*) AS TaggedForReview FROM ImageTags WHERE tagid=(SELECT id FROM Tags WHERE pid=0 AND name='$TAG_NAME')"
 
-	if ! [ "$CONT" = "y" ]; then
-		echo "Ok! Not running query"
-		return
+			echo
+			read -p "Can I run these as needed while using this software? (y/n) [y] " CONT
+			echo
+		else
+			CONT="y"
+		fi
+
+		if [ "$CONT" = "" ]; then
+			CONT="y"
+		fi
+
+
+		if ! [ "$CONT" = "y" ]; then
+			echo "Ok! Not running query"
+			return
+		fi
+
 	fi
+
+	CAN_GET_INFO="Y"
 
 	if [ "$dk_dbport" = "3306" -a "$dk_dbhost" = "localhost" ]; then
 		cmd="mysql -s --user=${dk_dbuser:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --database=${dk_dbname:Q}"
@@ -177,7 +231,7 @@ check_info() {
 
 print_info() {
 
-	check_info
+	get_info
 
 	echo
 	echo "${bold}Does the created_ts column exist?${normal}: $HAS_COLUMN"
@@ -187,9 +241,7 @@ print_info() {
 	echo "${bold}Total photos currently marked?${normal}: $TOTAL_MARKED"
 	echo
 
-	read -p "Press Enter to continue" CONT
-
-
+	read -p "Press Enter to continue " CONT
 }
 
 # Print the help text
@@ -243,7 +295,7 @@ mark_last_n() {
 	if ! [[ "$REVIEW" =~ ^[0-9]+$ ]]; then
 		echo 
 		echo "ERROR: '$REVIEW' is not an integer number. Not marking any photos."
-		read -p "Press ENTER to start over" RESET 
+		read -p "Press ENTER to start over " RESET 
 		return
 	fi
 
@@ -282,7 +334,7 @@ mark_last_interval() {
 	else
 		echo 
 		echo "ERROR: '$INTERVAL' was not one of m,h or d. I don't know how to handle it."
-		read -p "Press ENTER to start over" RESET
+		read -p "Press ENTER to start over " RESET
 		return
 	fi
 
@@ -296,7 +348,7 @@ mark_last_interval() {
 	if ! [[ "$DURATION" =~ ^[0-9]+$ ]]; then
 		echo 
 		echo "ERROR: '$DURATION' is not an integer number. Not marking any photos."
-		read -p "Press ENTER to start over" RESET
+		read -p "Press ENTER to start over " RESET
 		return
 	fi
 
@@ -321,46 +373,82 @@ mark_last_interval() {
 # Removes the "$TAG_NAME" tag from all photos
 unmark_all() {
 	sql_command "DELETE FROM ImageTags WHERE tagid=(SELECT id FROM Tags WHERE pid=0 AND name='$TAG_NAME')"
+	get_info
 }
 
 # Adds the column and tag needed
 setup_face_tag_review() {
-	sql_command "ALTER TABLE ImageTags ADD COLUMN IF NOT EXISTS created_ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP" 
+
+	read -p "Would you like to make a database backup first? (y/n) [y] " CONT
+
+	if [ "$CONT" = "y" ]; then
+		backup_digikam
+	fi
+
+	sql_command "ALTER TABLE ImageTags ADD COLUMN IF NOT EXISTS created_ts TIMESTAMP NULL" 
+
+	# Have to do this in two steps so that the existing rows don't get the default value
+	sql_command "ALTER TABLE ImageTags CHANGE COLUMN created_ts created_ts TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP" 
 	sql_command "INSERT IGNORE INTO Tags (pid,name) VALUES (0,'$TAG_NAME')"
+	get_info
 }
 
 # Removes the column and tag
 remove_face_tag_review() {
-	sql_command "ALTER TABLE ImageTags DROP COLUMN IF NOT EXISTS created_ts"
+
+	read -p "Would you like to make a database backup first? (y/n) [y] " CONT
+
+	if [ "$CONT" = "y" ]; then
+		backup_digikam
+	fi
+
+	unmark_all
+	sql_command "ALTER TABLE ImageTags DROP COLUMN IF EXISTS created_ts"
 	sql_command "DELETE FROM Tags WHERE pid=0 AND name='$TAG_NAME'";
+	HAS_COLUMN="No"
+	HAS_TAG="No"
+	FIRST_TAG_DATE="None"
+	TOTAL_MARKED="None"
 }
 
 # Dump the dk database
 backup_digikam() {
-
 	if [ "$dk_dbpass" = "" ]; then
-		get_sql_password
+		connect_to_db
 	fi
 
-	OUTFILE="digikam_backup_"$(date +"%Y%m%d_%H%S")".sql"
+	OUTFILE=$(pwd)"/digikam_backup_"$(date +"%Y%m%d_%H%S")".sql"
 	if [ "$dk_dbport" = "3306" -a "$dk_dbhost" = "localhost" ]; then
 		# If Mysql sees "localhost" it tries to connect on a socket, unless the port is also specified
 		# in which case it makes a network connection. 
 		# To force a network connection, you should use 127.0.0.1 instead. 
 		# Sources: https://stackoverflow.com/questions/5376427/cant-connect-to-local-mysql-server-through-socket-var-mysql-mysql-sock-38 etc.
-		cmd="mysqldump -vv --user=${dk_dbuser:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --databases ${dk_dbname:Q}"
+		cmd="mysqldump -v --user=${dk_dbuser:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --databases ${dk_dbname:Q}"
 	else
-		cmd="mysqldump -vv --user=${dk_dbuser:Q} --port=${dk_dbport:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --databases ${dk_dbname:Q}"
+		cmd="mysqldump -v --user=${dk_dbuser:Q} --port=${dk_dbport:Q} --host=${dk_dbhost:Q} --password=${dk_dbpass:Q} --databases ${dk_dbname:Q}"
 	fi
 
-	echo "I am about to run: "
-	echo "$cmd > $OUTFILE" 
-	echo
-	read -p "Should I continue? (y/N) " CONT
-	echo
+	if ! [[ "$ASK_SQL" = "n" ]]; then
+		echo "I am about to run: "
+		echo "$cmd > $OUTFILE" 
+		echo
+		read -p "Should I continue? (y/n) [n] " CONT
+		echo
+	else
+		CONT="y"
+	fi
 
 	if [ "$CONT" = "y" ]; then
 		$cmd > "$OUTFILE"
+		if ! [[ -f "$OUTFILE" ]]; then
+			echo
+			echo "${bold}THE BACKUP FAILED${normal} and we do not see backup file '$OUTFILE'"
+			echo
+			read -p "You might want to exit and see what the problem is." CONT
+		else
+			echo
+			echo "${bold}THE BACKUP SUCCEEDED${normal} and is located at '$OUTFILE'"
+		fi
 	else 
 		echo "Ok! Not running query"
 	fi
@@ -377,36 +465,65 @@ do
 	echo "${bold}${underline}DK Face Tag Review${normal}"
 	echo "${bold}h${normal}: Show More help"
 
+	ACTIONS="h"
+
 	if ! [[ "$dk_dbpass" = "" ]]; then
-		echo "${bold}m${normal}: Mark the last N photos tagged with a People tag for review"
-		echo "${bold}t${normal}: Mark photos tagged with a People tag in the last N minutes, hours or days for review"
-		echo "${bold}u${normal}: Unmark all photos marked for review"
-		echo "${bold}s${normal}: Set up my Digikam MySQL database to use this tool"
-		echo "${bold}r${normal}: Remove the extra column from my database"
-		echo "${bold}b${normal}: Make a backup of my database"
+
+		if [[ "$HAS_COLUMN" = "1" && "$HAS_TAG" = "1" ]]; then
+			echo "${bold}m${normal}: Mark the last N photos tagged with a People tag for review"
+			echo "${bold}t${normal}: Mark photos tagged with a People tag in the last N minutes, hours or days for review"
+			echo "${bold}u${normal}: Unmark all photos marked for review"
+			ACTIONS="${ACTIONS}/m/t/u"
+		else
+			echo "${bold}s${normal}: Setup - Add needed column and tag to my Digikam database."
+			ACTIONS="${ACTIONS}/s"
+		fi
+
+		if [[ "$HAS_COLUMN" = "1" || "$HAS_TAG" = "1" ]]; then
+			echo "${bold}r${normal}: Remove - Drop the columns and tags added by this software."
+			ACTIONS="${ACTIONS}/r"
+		fi
+
+		echo "${bold}b${normal}: Backup your digikam database"
+		ACTIONS="${ACTIONS}/b"
+
+		DEFAULT_ACTION="i"
 	else
 		echo "${bold}c${normal}: Connect to your database in order to see more options"
+		ACTIONS="${ACTIONS}/c"
+		DEFAULT_ACTION="c"
 	fi
+
 	echo "${bold}i${normal}: System status info"
 	echo "${bold}q${normal}: Quit"
-	echo
+	ACTIONS="${ACTIONS}/i/q"
 
-	if [[ "$dk_dbpass" = "" ]]; then
-		read -p "What would you like to do? (h/c/i/q) " action
-	else
-		read -p "What would you like to do? (h/m/t/u/s/r/b/i/q) " action
+	echo
+	read -p "What would you like to do? ($ACTIONS) [$DEFAULT_ACTION] " CHOSEN_ACTION
+
+	if [[ "$CHOSEN_ACTION" = "" ]]; then
+		CHOSEN_ACTION="$DEFAULT_ACTION"
 	fi
 
-	case $action in
+	# We should only be presenting valid options in the dialog above
+	# So even if an action is valid in some cases, it shouldn't be 
+	# valid now. Make sure the chosen action is in the allowed actions
+	if ! [[ "$ACTIONS" = *"$CHOSEN_ACTION"* ]]; then
+		echo
+		echo "I don't know what to do with action '$CHOSEN_ACTION'"
+		echo
+		CHOSEN_ACTION=""
+	fi
 
+	case $CHOSEN_ACTION in
 		h) print_help ;;
-		c) get_sql_password;;
+		i) print_info;;
+		c) connect_to_db;;
 		m) mark_last_n ;;
 		t) mark_last_interval ;;
 		u) unmark_all ;;
 		s) setup_face_tag_review ;;
 		r) remove_face_tag_review ;;
-		i) print_info;;
 		b) backup_digikam ;;
 		q) exit ;;
 	esac
