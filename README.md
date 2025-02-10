@@ -66,80 +66,80 @@ Run `dk_face_tag_review`.
 
 ![The first run options are pretty simple](img/first_run.png)
 
-    Press `c` to connect to your database. DK Face Tag Review will get the
-    database info from your digikamrc file. The password there is encrypted, so
-    you will be prompted for your password. 
+Press `c` to connect to your database. DK Face Tag Review will get the
+database info from your digikamrc file. The password there is encrypted, so
+you will be prompted for your password. 
 
 ![Getting the database connected](img/first_run_2.png)
 
-    After you enter your database password, DK Face Tag Review will ask if you
-    want to be prompted before it runs any SQL. Press `y` or `enter` to see all
-    the SQL. Press `n` to just trust what it is running. 
+After you enter your database password, DK Face Tag Review will ask if you
+want to be prompted before it runs any SQL. Press `y` or `enter` to see all
+the SQL. Press `n` to just trust what it is running. 
 
 
 ![Backup the database before using](img/first_run_3.png)
 
-    When you ask DK Face Tag Review to run Setup, it will ask if you want to
-    make a database backup first. This will be put in the current working
-    directory. 
+When you ask DK Face Tag Review to run Setup, it will ask if you want to
+make a database backup first. This will be put in the current working
+directory. 
 
 ![Backup the database before using](img/first_run_3.png)
 
-    After running the backup, a new timestamp column will be added to the
-    ImageTags table.  
+After running the backup, a new timestamp column will be added to the
+ImageTags table.  
 
-    You can now re-launch digiKam!
+You can now re-launch digiKam!
 
 Usage
 -----
 
-    With DK Face Tag Review set up, you can now tag as normal. 
+With DK Face Tag Review set up, you can now tag as normal. 
 
 ![Tagging a bunch of photos](img/tagging.png)
 
-    When you want to review some tagging work, run `dk_face_tag_review`. 
+When you want to review some tagging work, run `dk_face_tag_review`. 
 
 ![We can use `i` to see info about the status.](img/info.png)
 
-    In the info we can now see that there are 61 markable photos. These are
-    photos which have been tagged since DK Face Tag Review was set up. 
+In the info we can now see that there are 61 markable photos. These are
+photos which have been tagged since DK Face Tag Review was set up. 
 
-    I think I just made a mistake within the last few faces I tagged. 
+I think I just made a mistake within the last few faces I tagged. 
 
 ![Marking the last 30 photos for review](img/last_n.png)
 
-    I can either mark the last N photos tagged for review, or I can mark all
-    photos tagged in the last N minutes/hours/days.
+I can either mark the last N photos tagged for review, or I can mark all
+photos tagged in the last N minutes/hours/days.
 
-    **NOTE**: All tags created before Setup is run are considered to have been
-    created at the same time. If you run Setup and immediately ask
-    **DK Face Tag Review** to mark 10 photos for review, all of the existing
-    tags will have the same timestamp and order is not guaranteed.
+**NOTE**: All tags created before Setup is run are considered to have been
+created at the same time. If you run Setup and immediately ask
+**DK Face Tag Review** to mark 10 photos for review, all of the existing
+tags will have the same timestamp and order is not guaranteed.
 
 ![Now I navigate to the DK Face Tag Review tag to check](img/reviewing.png)
 
-    The images I marked should now appear under the tag **DK Face Tag Review**.
-    I can now review each photo and correct any mistakes. I can either remove
-    the **DK Face Tag Review** tag as I work through them, or I can use
-    `dk_face_tag_review` to unmark them all at once. 
+The images I marked should now appear under the tag **DK Face Tag Review**.
+I can now review each photo and correct any mistakes. I can either remove
+the **DK Face Tag Review** tag as I work through them, or I can use
+`dk_face_tag_review` to unmark them all at once. 
 
 
 Features
 --------
 
-    * Makes it possible to see which photos have been most recently tagged with
-    a People tag
-    * Can mark photos for review by last N photos or last N minutes/hours/days
-    * Has database backup script built in
-    * Can clear the `DK Face Tag Review` tag from all the marked images
-    * Includes script to undo changes to database
+* Makes it possible to see which photos have been most recently tagged with
+a People tag
+* Can mark photos for review by last N photos or last N minutes/hours/days
+* Has database backup script built in
+* Can clear the `DK Face Tag Review` tag from all the marked images
+* Includes script to undo changes to database
 
 Questions
 ---------
 
-    Q: I accidentally tagged 1000 faces as "John" which is probably wrong. Can
-    this tool help me?  
+Q: I accidentally tagged 1000 faces as "John" which is probably wrong. Can
+this tool help me?  
 
-    A: If you ran Setup before tagging, then yes! If you
-    just found this tool, then run Setup now and we'll be there for you next
-    time. 
+A: If you ran Setup before tagging, then yes! If you
+just found this tool, then run Setup now and we'll be there for you next
+time. 
