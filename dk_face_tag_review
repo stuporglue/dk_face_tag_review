@@ -1,5 +1,13 @@
 #!/bin/bash
 
+###
+### DK Face Tag Review
+###
+### A little script to make tagging mistakes in digiKam less painful
+###
+### https://github.com/stuporglue/dk_face_tag_review
+###
+
 ### MIT License Copyright (c) 2025 Michael Moore <stuporglue@gmail.com>
 ### 
 ### Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,12 +28,7 @@
 ### WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 ### OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if [ "$1" == "--debug" ]; then
-	VERBOSE="y"
-	ASK_SQL="y"
-else
-	ASK_SQL="n"
-fi
+
 
 # Check for the config file and some db connection parameter sanity
 startup() {
@@ -251,6 +254,11 @@ print_help() {
 	echo "
 	${bold}${underline}DK Face Tag Review${normal}
 
+	${bold}USAGE:${normal} dk_face_tag_review [--help|--debug]
+
+	--help will print this message.
+	--debug will be more verbose, printing each SQL statement before it is run.
+
 	This is NOT an officially supported tool from digiKam. There
 	are no guarantees or warranties of any kind. Using it might be DANGEROUS.
 
@@ -280,6 +288,8 @@ print_help() {
 
 	${bold}TESTED WITH${normal}: digiKam 8.6 weekly release appimage on Debian Linux 
 	with MariaDB 11.4.4
+
+	${bold}SEE ALSO${normal}: https://github.com/stuporglue/dk_face_tag_review
 
 	Press ENTER to continue
 " | more
@@ -451,77 +461,97 @@ backup_digikam() {
 	fi
 }
 
-# Do the startup sanity checks
-startup
 
-# Just keep looping until the user quits. 
-while :
-do
+# Here's our main program loop
+__dk_face_tag_review__(){
+	# Do the startup sanity checks
+	startup
 
-	echo
-	echo "${bold}${underline}DK Face Tag Review${normal}"
-	echo "${bold}h${normal}: Show More help"
+	# Just keep looping until the user quits. 
+	while :
+	do
 
-	ACTIONS="h"
+		echo
+		echo "${bold}${underline}DK Face Tag Review${normal}"
+		echo "${bold}h${normal}: Show More help"
 
-	if ! [[ "$dk_dbpass" = "" ]]; then
+		ACTIONS="h"
 
-		if [[ "$HAS_COLUMN" = "1" && "$HAS_TAG" = "1" ]]; then
-			echo "${bold}m${normal}: Mark the last N photos tagged with a People tag for review"
-			echo "${bold}t${normal}: Mark photos tagged with a People tag in the last N minutes, hours or days for review"
-			echo "${bold}u${normal}: Unmark all photos marked for review"
-			ACTIONS="${ACTIONS}/m/t/u"
+		if ! [[ "$dk_dbpass" = "" ]]; then
+
+			if [[ "$HAS_COLUMN" = "1" && "$HAS_TAG" = "1" ]]; then
+				echo "${bold}m${normal}: Mark the last N photos tagged with a People tag for review"
+				echo "${bold}t${normal}: Mark photos tagged with a People tag in the last N minutes, hours or days for review"
+				echo "${bold}u${normal}: Unmark all photos marked for review"
+				ACTIONS="${ACTIONS}/m/t/u"
+			else
+				echo "${bold}s${normal}: Setup - Add needed column and tag to my Digikam database."
+				ACTIONS="${ACTIONS}/s"
+			fi
+
+			if [[ "$HAS_COLUMN" = "1" || "$HAS_TAG" = "1" ]]; then
+				echo "${bold}r${normal}: Remove - Drop the columns and tags added by this software."
+				ACTIONS="${ACTIONS}/r"
+			fi
+
+			echo "${bold}b${normal}: Backup your digikam database"
+			ACTIONS="${ACTIONS}/b"
+
+			DEFAULT_ACTION="i"
 		else
-			echo "${bold}s${normal}: Setup - Add needed column and tag to my Digikam database."
-			ACTIONS="${ACTIONS}/s"
+			echo "${bold}c${normal}: Connect to your database in order to see more options"
+			ACTIONS="${ACTIONS}/c"
+			DEFAULT_ACTION="c"
 		fi
 
-		if [[ "$HAS_COLUMN" = "1" || "$HAS_TAG" = "1" ]]; then
-			echo "${bold}r${normal}: Remove - Drop the columns and tags added by this software."
-			ACTIONS="${ACTIONS}/r"
+		echo "${bold}i${normal}: System status info"
+		echo "${bold}q${normal}: Quit"
+		ACTIONS="${ACTIONS}/i/q"
+
+		echo
+		read -p "What would you like to do? ($ACTIONS) [$DEFAULT_ACTION] " CHOSEN_ACTION
+
+		if [[ "$CHOSEN_ACTION" = "" ]]; then
+			CHOSEN_ACTION="$DEFAULT_ACTION"
 		fi
 
-		echo "${bold}b${normal}: Backup your digikam database"
-		ACTIONS="${ACTIONS}/b"
+		# We should only be presenting valid options in the dialog above
+		# So even if an action is valid in some cases, it shouldn't be 
+		# valid now. Make sure the chosen action is in the allowed actions
+		if ! [[ "$ACTIONS" = *"$CHOSEN_ACTION"* ]]; then
+			echo
+			echo "I don't know what to do with action '$CHOSEN_ACTION'"
+			echo
+			CHOSEN_ACTION=""
+		fi
 
-		DEFAULT_ACTION="i"
-	else
-		echo "${bold}c${normal}: Connect to your database in order to see more options"
-		ACTIONS="${ACTIONS}/c"
-		DEFAULT_ACTION="c"
-	fi
+		case $CHOSEN_ACTION in
+			h) print_help ;;
+			i) print_info;;
+			c) connect_to_db;;
+			m) mark_last_n ;;
+			t) mark_last_interval ;;
+			u) unmark_all ;;
+			s) setup_face_tag_review ;;
+			r) remove_face_tag_review ;;
+			b) backup_digikam ;;
+			q) exit ;;
+		esac
+	done
+}
 
-	echo "${bold}i${normal}: System status info"
-	echo "${bold}q${normal}: Quit"
-	ACTIONS="${ACTIONS}/i/q"
 
-	echo
-	read -p "What would you like to do? ($ACTIONS) [$DEFAULT_ACTION] " CHOSEN_ACTION
+# Process cli arts
+if [ "$1" == "--debug" ]; then
+	VERBOSE="y"
+	ASK_SQL="y"
+else
+	ASK_SQL="n"
+fi
 
-	if [[ "$CHOSEN_ACTION" = "" ]]; then
-		CHOSEN_ACTION="$DEFAULT_ACTION"
-	fi
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+	print_help
+	exit
+fi
 
-	# We should only be presenting valid options in the dialog above
-	# So even if an action is valid in some cases, it shouldn't be 
-	# valid now. Make sure the chosen action is in the allowed actions
-	if ! [[ "$ACTIONS" = *"$CHOSEN_ACTION"* ]]; then
-		echo
-		echo "I don't know what to do with action '$CHOSEN_ACTION'"
-		echo
-		CHOSEN_ACTION=""
-	fi
-
-	case $CHOSEN_ACTION in
-		h) print_help ;;
-		i) print_info;;
-		c) connect_to_db;;
-		m) mark_last_n ;;
-		t) mark_last_interval ;;
-		u) unmark_all ;;
-		s) setup_face_tag_review ;;
-		r) remove_face_tag_review ;;
-		b) backup_digikam ;;
-		q) exit ;;
-	esac
-done
+__dk_face_tag_review__
