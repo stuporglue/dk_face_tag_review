@@ -72,9 +72,7 @@ you will be prompted for your password.
 
 ![Getting the database connected](img/first_run_2.png)
 
-After you enter your database password, DK Face Tag Review will ask if you
-want to be prompted before it runs any SQL. Press `y` or `enter` to see all
-the SQL. Press `n` to just trust what it is running. 
+Enter your MySQL password for the digikam database
 
 
 ![Backup the database before using](img/first_run_3.png)
@@ -92,6 +90,14 @@ You can now re-launch digiKam!
 
 Usage
 -----
+
+### Command-Line Args
+
+You can use
+ * --help to see the help dialog
+ * --debug will prompt you before running any SQL query
+
+### Day-To-Day Usage
 
 With DK Face Tag Review set up, you can now tag as normal. 
 

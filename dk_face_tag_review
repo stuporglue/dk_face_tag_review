@@ -242,7 +242,7 @@ print_info() {
 	echo "${bold}Does the created_ts column exist?${normal}: $HAS_COLUMN"
 	echo "${bold}Does the tag '$TAG_NAME' exist?${normal}: $HAS_TAG"
 	echo "${bold}Earliest date we can mark?${normal}: $FIRST_TAG_DATE"
-	echo "${bold}Total N markable photos?${normal}: $TOTAL_MARKABLE"
+	echo "${bold}Total markable photos?${normal}: $TOTAL_MARKABLE"
 	echo "${bold}Total photos currently marked?${normal}: $TOTAL_MARKED"
 	echo
 
