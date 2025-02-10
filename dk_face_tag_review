@@ -20,6 +20,13 @@
 ### WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 ### OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+if [ "$1" == "--debug" ]; then
+	VERBOSE="y"
+	ASK_SQL="y"
+else
+	ASK_SQL="n"
+fi
+
 # Check for the config file and some db connection parameter sanity
 startup() {
 
@@ -106,10 +113,6 @@ connect_to_db() {
 	done
 
 
-	echo 
-	echo "I can ask you before running any SQL query, or you can trust the program for this run."
-	read -p "Do you want me to always ask before running SQL queries? (y/n) [y] " ASK_SQL
-
 	if ! [[ "$ASK_SQL" = "n" ]]; then
 		ASK_SQL="y"
 	fi
@@ -169,9 +172,8 @@ get_info() {
 			echo
 			echo "SHOW CREATE TABLE ImageTags"
 			echo "SELECT COUNT(*) FROM Tags WHERE pid=0 AND name='$TAG_NAME'"
-			echo "SELECT MIN(created_ts) FROM ImageTags"
-			echo "SELECT MIN(created_ts) FROM ImageTags"
-			echo "SELECT COUNT(DISTINCT imageid) AS ReviewableCount FROM ImageTags WHERE created_ts IS NOT NULL"
+			echo "SELECT MIN(it.created_ts) FROM ImageTags it, Tags t, Tags tp WHERE it.tagid=t.id AND t.pid=tp.id AND tp.name='People'"
+			echo "SELECT COUNT(DISTINCT it.imageid) FROM ImageTags it, Tags t, Tags tp WHERE it.tagid=t.id AND t.pid=tp.id AND tp.name='People'"
 			echo "SELECT COUNT(*) AS TaggedForReview FROM ImageTags WHERE tagid=(SELECT id FROM Tags WHERE pid=0 AND name='$TAG_NAME')"
 
 			echo
@@ -217,7 +219,7 @@ get_info() {
 	fi
 
 	if [ "$HAS_COLUMN" = "1" ]; then
-		TOTAL_MARKABLE=$(echo "SELECT COUNT(DISTINCT imageid) AS ReviewableCount FROM ImageTags WHERE created_ts IS NOT NULL" | $cmd);
+		TOTAL_MARKABLE=$(echo "SELECT COUNT(DISTINCT it.imageid) AS ReviewableCount FROM ImageTags it, Tags t, Tags tp WHERE it.tagid=t.id AND t.pid=tp.id AND tp.name='People'" | $cmd);
 	else
 		TOTAL_MARKABLE="N/A"
 	fi
@@ -237,7 +239,7 @@ print_info() {
 	echo "${bold}Does the created_ts column exist?${normal}: $HAS_COLUMN"
 	echo "${bold}Does the tag '$TAG_NAME' exist?${normal}: $HAS_TAG"
 	echo "${bold}Earliest date we can mark?${normal}: $FIRST_TAG_DATE"
-	echo "${bold}Total markable photos?${normal}: $TOTAL_MARKABLE"
+	echo "${bold}Total N markable photos?${normal}: $TOTAL_MARKABLE"
 	echo "${bold}Total photos currently marked?${normal}: $TOTAL_MARKED"
 	echo
 
@@ -312,7 +314,6 @@ mark_last_n() {
 	AND it.tagid=t.id 
 	AND t.pid=tp.id 
 	AND tp.name='People' 
-	AND it.created_ts IS NOT NULL
 	ORDER BY it.created_ts DESC 
 	LIMIT $REVIEW"
 }
@@ -366,7 +367,6 @@ mark_last_interval() {
  	AND it.tagid=t.id 
  	AND t.pid=tp.id 
  	AND tp.name='People' 
- 	AND it.created_ts IS NOT NULL
  	AND it.created_ts > DATE_SUB(now(), INTERVAL $DURATION $INTERVAL)"
 }
 
@@ -385,10 +385,7 @@ setup_face_tag_review() {
 		backup_digikam
 	fi
 
-	sql_command "ALTER TABLE ImageTags ADD COLUMN IF NOT EXISTS created_ts TIMESTAMP NULL" 
-
-	# Have to do this in two steps so that the existing rows don't get the default value
-	sql_command "ALTER TABLE ImageTags CHANGE COLUMN created_ts created_ts TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP" 
+	sql_command "ALTER TABLE ImageTags ADD COLUMN IF NOT EXISTS created_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" 
 	sql_command "INSERT IGNORE INTO Tags (pid,name) VALUES (0,'$TAG_NAME')"
 	get_info
 }
