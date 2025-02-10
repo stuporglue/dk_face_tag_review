@@ -145,7 +145,17 @@ Questions
 
 Q: I accidentally tagged 1000 faces as "John" which is probably wrong. Can
 this tool help me?  
-
 A: If you ran Setup before tagging, then yes! If you
 just found this tool, then run Setup now and we'll be there for you next
 time. 
+
+
+Q: Does it work with SQLite or MySQL Internal databases? 
+A: Definatley not with SQLite. Probably not with MySQL Internal? It is untested.
+
+Q: Will this work on Mac or Windows? 
+A: No, probably not. It reads most of the database info from ~/.config/digikamrc
+which isn't where Mac and Windows store the config file
+
+Q: What does the future hold? 
+A: No one knows. Maybe a digiKam plugin could be fun?
